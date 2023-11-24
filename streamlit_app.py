@@ -2,8 +2,7 @@ import pandas as pd
 import ssl
 import streamlit as st
 import plotly.express as px
-from bokeh.palettes import HighContrast3
-from bokeh.plotting import figure, show
+
 
 # Disabilita la verifica del certificato SSL (NON consigliato in produzione)
 ssl._create_default_https_context = ssl._create_unverified_context
