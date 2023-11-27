@@ -92,7 +92,8 @@ nazioni_mapping = {
     'UKM': 'Scozia',
     'UKC-L': 'Inghilterra e Galles',
     'LI': 'Liechtenstein',
-    'EU_V': 'Unione Europea'
+    'EU_V': 'Unione Europea',
+    'XK': 'Kosovo'
 }
 
 # Ottieni il dataset Eurostat
@@ -126,8 +127,40 @@ dataset_eurostat['Unità'] = dataset_eurostat['Unità'].replace({'NR': 'Valori a
                                                                })
 dataset_eurostat['Nazione'] = dataset_eurostat['Nazione'].replace(nazioni_mapping)
 
-# Visualizza il DataFrame melted
+#daataset reati da eurostat
 
+violenze = eurostat.get_data_df('crim_hom_soff', True)
+violenze.columns = violenze.columns.str.replace('_value', '')
+
+
+violenze = pd.melt(violenze, id_vars=['freq', 'iccs', 'leg_stat', 'sex', 'unit', 'geo\TIME_PERIOD'], var_name='anno', value_name='valore')
+
+violenze['geo\TIME_PERIOD'] = violenze['geo\TIME_PERIOD'].replace(nazioni_mapping)
+violenze=violenze.dropna()
+
+violenze['iccs'] = violenze['iccs'].replace({'ICCS0101': 'Omicidio intenzionale',
+                                             'ICCS03011': 'Stupro',
+                                             'ICCS03012': 'Violenza sessuale'})
+
+violenze['leg_stat'] = violenze['leg_stat'].replace({'PER_CNV': 'Persona condannata',
+                                             'PER_PRSC': 'Persona perseguita',
+                                             'PER_SUSP': 'Persona sospettata',
+                                              'PER_VICT': 'Vittima'})
+violenze = violenze.rename(
+    columns={'iccs': 'ICCS - categorie di reato', 'leg_stat':'Stato', 'sex': 'Sesso della vittima', 'unit': 'Unità', 'geo\TIME_PERIOD': 'Nazione',
+             'anno': 'Anno', 'valore': 'Omicidi'})
+violenze = violenze[~violenze['Anno'].str.contains('_flag')]
+violenze.columns = violenze.columns.str.replace('_value', '')
+
+violenze['Unità'] = violenze['Unità'].replace({'NR': 'Valori assoluti',
+
+                                                               'P_HTHAB': 'Valori per centomila abitanti'
+
+                                                               })
+
+violenze_vittima = violenze[violenze['Stato'].isin(['Vittima'])]
+violenze_vittima_ass = violenze_vittima[violenze_vittima['Unità'].isin(['Valori assoluti'])]
+violenze_vittima_rel = violenze_vittima[violenze_vittima['Unità'].isin(['Valori per centomila abitanti'])]
 
 # Crea l'app Streamlit
 st.title('Omicidi in Italia, analisi sui femminicidi')
@@ -144,7 +177,90 @@ st.write("Puoi scaricare i dataset già puliti utilizzati in questa visualizzazi
 
 
 # Aggiungi le tabelle
-tab1, tab2, tab3, tab4 = st.tabs(["Confronto fra Uomo e Donna per relazione con la vittima", "Omicidi per relazione con la vittima", 'Confronto Europa', "Dataset"])
+tab1, tab2, tab3, tab5, tab4 = st.tabs(["Confronto fra Uomo e Donna per relazione con la vittima", "Omicidi per relazione con la vittima", 'Confronto Europa', 'Reati sessuali', "Dataset"])
+
+with tab5:
+
+    # Descrizione generica dei reati
+    generic_description = (
+        "I reati inclusi in questo dataset sono categorizzati "
+        "conformemente agli standard internazionali ICCS. L'omicidio intenzionale rappresenta l'atto intenzionale di causare "
+        "la morte di un'altra persona. Il reato di stupro coinvolge l'atto sessuale non consensuale, mentre la violenza "
+        "sessuale comprende varie forme di assalto di natura sessuale."
+    )
+
+    st.write("Descrizione generica dei reati:")
+    st.write(generic_description)
+
+    # Aggiunta di una descrizione al dataset
+    dataset_link = "https://db.nomics.world/Eurostat/crim_hom_soff?offset=10&tab=table"
+    st.write(f"Il dataset è stato filtrato per lo status della vittima. [Link al dataset]({dataset_link})")
+    st.write(
+        "([Per saperne di più riguardo alla categorizzazione dei reati si rinvia alla documentazione](https://ec.europa.eu/eurostat/documents/64346/2989606/Methodological+guide+for+users/bfd3bb4a-67b7-44de-860e-cb911df9e17a))")
+
+    fig_violenze_vittima_ass = px.bar(
+        violenze_vittima_ass,
+        x=violenze_vittima_ass.Anno,
+        y="Omicidi",
+        color="ICCS - categorie di reato",
+        facet_col="Sesso della vittima",  # Aggiungi una suddivisione in colonne
+        title="Reati sessuali e omicidi per genere - Valori assoluti",
+        labels={'index': 'Anno', 'Omicidi': 'Reati'},
+        hover_data=['Nazione', 'Sesso della vittima', 'Unità']
+    )
+    st.plotly_chart(fig_violenze_vittima_ass)
+
+    violenze_vittima_ass_naz=violenze_vittima_ass[violenze_vittima_ass['ICCS - categorie di reato'].isin(['Stupro','Violenza sessuale'])]
+
+    fig_violenze_vittima_ass_naz = px.bar(
+        violenze_vittima_ass_naz,
+        x='Anno',
+        y="Omicidi",
+        color="Nazione",
+        facet_col="Sesso della vittima",
+        facet_row="ICCS - categorie di reato",# Aggiungi una suddivisione in colonne
+        title="Reati sessuali (Stupro e Violenza sessuale) per nazione e genere - Valori assoluti",
+        labels={'index': 'Anno', 'Omicidi': 'Reati'},
+        hover_data=['ICCS - categorie di reato', 'Sesso della vittima', 'Unità', "Omicidi",]
+    )
+    fig_violenze_vittima_ass_naz.update_layout(
+        height=800,  # Imposta l'altezza desiderata in pixel
+        width=800  # Imposta la larghezza desiderata in pixel
+    )
+
+    st.plotly_chart(fig_violenze_vittima_ass_naz)
+
+    fig_violenze_vittima_rel = px.bar(
+        violenze_vittima_rel,
+        x=violenze_vittima_rel.Anno,
+        y="Omicidi",
+        color="ICCS - categorie di reato",
+        facet_col="Sesso della vittima",  # Aggiungi una suddivisione in colonne
+        title="Reati sessuali e omicidi per genere - Valori relativi",
+        labels={'index': 'Anno', 'Omicidi': 'Reati per centomila abitanti'},
+        hover_data=['Nazione', 'Sesso della vittima', 'Unità'])
+    st.plotly_chart(fig_violenze_vittima_rel)
+
+    violenze_vittima_rel_naz=violenze_vittima_rel[violenze_vittima_rel['ICCS - categorie di reato'].isin(['Stupro','Violenza sessuale'])]
+
+    fig_violenze_vittima_rel_naz = px.bar(
+        violenze_vittima_rel_naz,
+        x='Anno',
+        y="Omicidi",
+        color="Nazione",
+        facet_col="Sesso della vittima",
+        facet_row="ICCS - categorie di reato",# Aggiungi una suddivisione in colonne
+        title="Reati sessuali (Stupro e Violenza sessuale) per nazione e genere - Valori relativi",
+        labels={'index': 'Anno', 'Omicidi': 'Reati'},
+        hover_data=['ICCS - categorie di reato', 'Sesso della vittima', 'Unità', "Omicidi",]
+    )
+    fig_violenze_vittima_rel_naz.update_layout(
+        height=800,  # Imposta l'altezza desiderata in pixel
+        width=800  # Imposta la larghezza desiderata in pixel
+    )
+
+    st.plotly_chart(fig_violenze_vittima_rel_naz)
+
 
 with tab4:
     st.write("In questa sezione puoi visualizzare e scaricare i dataset")
@@ -152,19 +268,22 @@ with tab4:
     st.table(totale)
     st.download_button("Download dataset totale", totale.to_csv(index=False).encode('utf-8'), 'dataset_totale.csv', 'text/csv')
 
-    st.header('Omicidi in relazione alla vittima - Uomo')
+    st.header('Omicidi in relazione alla vittima in Italia - Uomo')
     st.table(uomo)
     st.download_button("Download dataset uomo", uomo.to_csv(index=False).encode('utf-8'), 'dataset_uomo.csv', 'text/csv')
 
-    st.header('Omicidi in relazione alla vittima - Donna')
+    st.header('Omicidi in relazione alla vittima in Italia - Donna')
     st.table(donna)
     st.download_button("Download dataset donna", donna.to_csv(index=False).encode('utf-8'), 'dataset_donna.csv', 'text/csv')
 
     st.header('Omicidi in relazione alla vittima - Eurostat')
-    st.table(dataset_eurostat)
-    st.download_button("Download dataset Eurostat", dataset_eurostat.to_csv(index=False).encode('utf-8'), 'dataset_eurostat.csv',
+    st.dataframe(dataset_eurostat)
+    st.download_button("Download dataset Omicidi in relazione alla vittima - Eurostat", dataset_eurostat.to_csv(index=False).encode('utf-8'), 'dataset_eurostat.csv',
                        'text/csv')
-
+    st.header('Reati sessuali e omicidi - Eurostat')
+    st.dataframe(violenze)
+    st.download_button("Download dataset Reati sessuali e omicidi - Eurostat", dataset_eurostat.to_csv(index=False).encode('utf-8'), 'dataset_eurostat.csv',
+                       'text/csv')
 
 
     # Aggiungi link di riferimento a ISTAT
@@ -227,13 +346,13 @@ with tab3:
     st.plotly_chart(fig_eurostat_uomo)
 
     fig_eurostat_donna_anno = px.bar(eurostat_filtrato_donna, x='Nazione', y='Omicidi', color='Anno',
-                          labels={'Valore': 'Omicidi', 'Anno': 'Anno di riferimento'},
+                          labels={'Valore': 'Omicidi', 'Nazione': 'Nazione di riferimento'},
                           title='Omicidi per nazione commessi dal partner sesso della vittima = Donna',
                           hover_data=['Nazione', 'Sesso della vittima', 'Unità'])
     st.plotly_chart(fig_eurostat_donna_anno)
 
     fig_eurostat_uomo_anno = px.bar(eurostat_filtrato_uomo, x='Nazione', y='Omicidi', color='Anno',
-                                     labels={'Valore': 'Omicidi', 'Anno': 'Anno di riferimento'},
+                                     labels={'Omicidi': 'Omicidi', 'Nazione': 'Nazione di riferimento'},
                                      title='Omicidi per nazione commessi dal partner sesso della vittima = Uomo',
                                      hover_data=['Nazione', 'Sesso della vittima', 'Unità'])
     st.plotly_chart(fig_eurostat_uomo_anno)
@@ -245,30 +364,30 @@ with tab3:
     eurostat_filtrato_donna_centomila = eurostat_filtrato_donna_centomila[eurostat_filtrato_donna_centomila['Omicida'].isin(['Partner'])]
 
     fig_eurostat_donna_cento = px.bar(eurostat_filtrato_donna_centomila, x='Anno', y='Omicidi', color='Nazione',
-                          labels={'Valore': 'Omicidi', 'Anno': 'Anno di riferimento'},
+                          labels={'Omicidi': 'Omicidi per centomila abitanti', 'Anno': 'Anno di riferimento'},
                           title='Omicidi commessi dal partner sesso della vittima = Donna - Dati per centomila abitanti',
                           hover_data=['Nazione', 'Sesso della vittima', 'Unità'])
     st.plotly_chart(fig_eurostat_donna_cento)
 
     eurostat_filtrato_uomo_centomila = dataset_eurostat.copy()
-    eurostat_filtrato_uomo_centomila = eurostat_filtrato_uomo_centomila[eurostat_filtrato_uomo_centomila['Sesso della vittima'].isin(['U'])]
+    eurostat_filtrato_uomo_centomila = eurostat_filtrato_uomo_centomila[eurostat_filtrato_uomo_centomila['Sesso della vittima'].isin(['M'])]
     eurostat_filtrato_uomo_centomila = eurostat_filtrato_uomo_centomila[eurostat_filtrato_uomo_centomila['Unità'].isin(['Valori per centomila abitanti'])]
     eurostat_filtrato_uomo_centomila = eurostat_filtrato_uomo_centomila[eurostat_filtrato_uomo_centomila['Omicida'].isin(['Partner'])]
 
-    fig_eurostat_uomo_cento = px.bar(eurostat_filtrato_donna_centomila, x='Anno', y='Omicidi', color='Nazione',
-                                      labels={'Valore': 'Omicidi', 'Anno': 'Anno di riferimento'},
+    fig_eurostat_uomo_cento = px.bar(eurostat_filtrato_uomo_centomila, x='Anno', y='Omicidi', color='Nazione',
+                                      labels={'Omicidi': 'Omicidi per centomila abitanti', 'Anno': 'Anno di riferimento'},
                                       title='Omicidi commessi dal partner sesso della vittima = Uomo - Dati per centomila abitanti',
                                       hover_data=['Nazione', 'Sesso della vittima', 'Unità'])
     st.plotly_chart(fig_eurostat_uomo_cento)
 
     fig_eurostat_donna_cento_nazione = px.bar(eurostat_filtrato_donna_centomila, x='Nazione', y='Omicidi', color='Anno',
-                                      labels={'Valore': 'Omicidi', 'Anno': 'Anno di riferimento'},
+                                      labels={'Omicidi': 'Omicidi per centomila abitanti', 'Nazione': 'Nazionedi riferimento'},
                                       title='Omicidi per nazione commessi dal partner sesso della vittima = Donna - Dati per centomila abitanti',
                                       hover_data=['Nazione', 'Sesso della vittima', 'Unità'])
     st.plotly_chart(fig_eurostat_donna_cento_nazione)
 
-    fig_eurostat_uomo_cento_nazione = px.bar(eurostat_filtrato_donna_centomila, x='Nazione', y='Omicidi', color='Anno',
-                                      labels={'Valore': 'Omicidi', 'Anno': 'Anno di riferimento'},
+    fig_eurostat_uomo_cento_nazione = px.bar(eurostat_filtrato_uomo_centomila, x='Nazione', y='Omicidi', color='Anno',
+                                      labels={'Omicidi': 'Omicidi per centomila abitanti', 'Nazione': 'Nazione di riferimento'},
                                       title='Omicidi commessi dal partner sesso della vittima = Uomo - Dati per centomila abitanti',
                                       hover_data=['Nazione', 'Sesso della vittima', 'Unità'])
     st.plotly_chart(fig_eurostat_uomo_cento_nazione)
