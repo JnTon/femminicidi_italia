@@ -1,6 +1,6 @@
 pandas==1.3.3
 openpyxl
-streamlit==1.19.0
+streamlit
 plotly==5.3.1
 numpy==1.21.2
 eurostat
