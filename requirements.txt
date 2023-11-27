@@ -3,3 +3,4 @@ openpyxl
 streamlit==1.19.0
 plotly==5.3.1
 numpy==1.21.2
+eurostat
