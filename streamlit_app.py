@@ -216,16 +216,19 @@ with tab6:
     st.write('In questa tab vengono rappresentati i casi di suicidio e i tentatativi di suicidio. La serie storica si interrompe al 2009.')
     st.write('[Dataset ISTAT](https://www.istat.it/it/files//2011/04/tavole.zip)')
     fig_suicidi_ass = px.line(suicidi,
-                          x="Anno",
-                          y=['Suicidi totali', 'Suicidi F', 'Suicidi M'],
-                          title='Suicidi per genere - Italia',
-                          labels={'variable': 'Genere', 'Value': 'Suicidi', 'value': 'Suicidi'},
-                        color_discrete_map = {
-        'Suicidi totali': 'green',
-        'Suicidi M': 'blue',
-        'Suicidi F': 'red'
-    },
-    )
+                              x="Anno",
+                              y=['Suicidi totali', 'Suicidi F', 'Suicidi M'],
+                              title='Suicidi per genere - Italia',
+                              labels={'variable': 'Genere', 'Value': 'Suicidi', 'value': 'Suicidi'},
+                              color_discrete_map={
+                                  'Suicidi totali': 'green',
+                                  'Suicidi M': 'blue',
+                                  'Suicidi F': 'red'
+                              },
+                              range_y=[0, suicidi[['Suicidi totali', 'Suicidi F', 'Suicidi M']].max().max()]
+
+                              )
+
     st.plotly_chart(fig_suicidi_ass)
 
     fig_tentativi_suicidio = px.line(suicidi,
@@ -237,7 +240,8 @@ with tab6:
                                          'Suicidi totali': 'green',
                                          'Tentativi di suicidio M': 'blue',
                                          'Tentativi di suicidio F': 'red'
-                                     }
+                                     },
+                            range_y = [0, suicidi[['Tentativi di suicidio F', 'Tentativi di suicidio M']].max().max()]
                                      )
     st.plotly_chart(fig_tentativi_suicidio)
 
@@ -250,7 +254,8 @@ with tab6:
                                     'Suicidi totali': 'green',
                                     'Suicidi / tentativi di suicidio M': 'blue',
                                     'Suicidi / tentativi di suicidio F': 'red'
-                                }
+                                },
+                                range_y=[0, suicidi[['Suicidi / tentativi di suicidio F', 'Suicidi / tentativi di suicidio M']].max().max()]
                                 )
     st.plotly_chart(fig_suicidi_ratio)
 
