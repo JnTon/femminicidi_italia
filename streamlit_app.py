@@ -3,6 +3,10 @@ import ssl
 import streamlit as st
 import plotly.express as px
 
+import requests
+import zipfile
+from io import BytesIO
+
 
 # Disabilita la verifica del certificato SSL (NON consigliato in produzione)
 ssl._create_default_https_context = ssl._create_unverified_context
@@ -175,9 +179,80 @@ st.image(image_url, caption='Gli omicidi con vittime femminili sono suddivisi in
 st.write("I dati sono estratti dalla relazione dell'Istituto Nazionale di Statistica ([ISTAT](https://www.istat.it/it/files//2018/04/omicidi-relazione-autore-DCPC-anni-2002-2021_v.3.xlsx)).")
 st.write("Puoi scaricare i dataset già puliti utilizzati in questa visualizzazione dal pulsante apposito")
 
+# URL del file Excel
+url = "https://www.istat.it/it/files//2011/04/tavole.zip"
+
+# Effettua la richiesta per ottenere il contenuto del file ZIP
+response = requests.get(url)
+with zipfile.ZipFile(BytesIO(response.content), "r") as zip_ref:
+    # Nome del file Excel nel terzo foglio
+    excel_filename = "tavole.xls"
+    # Leggi il terzo foglio del file Excel
+    suicidi = pd.read_excel(zip_ref.read(excel_filename), sheet_name=2, skiprows=2)
+suicidi=suicidi.dropna()
+
+
+renamed_s = {
+    'Unnamed: 0': 'Anno',
+    'Suicidi': 'Suicidi M',
+    'Unnamed: 2': 'Suicidi F',
+    'Unnamed: 3': 'Suicidi totali',
+    'Tentativi di suicidio': 'Tentativi di suicidio M',
+    'Unnamed: 5': 'Tentativi di suicidio F',
+    'Unnamed: 6': 'Tentativi di suicidio totali'
+}
+
+# Rinomina le colonne utilizzando il metodo "rename"
+suicidi.rename(columns=renamed_s, inplace=True)
+suicidi=suicidi.loc[0:6]
+suicidi['Suicidi / tentativi di suicidio F']=suicidi['Suicidi F']/(suicidi['Tentativi di suicidio F']+suicidi['Suicidi F'])*100
+suicidi['Suicidi / tentativi di suicidio M']=suicidi['Suicidi M']/(suicidi['Tentativi di suicidio M']+suicidi['Suicidi F'])*100
+
 
 # Aggiungi le tabelle
-tab1, tab2, tab3, tab5, tab4 = st.tabs(["Confronto fra Uomo e Donna per relazione con la vittima", "Omicidi per relazione con la vittima", 'Confronto Europa', 'Reati sessuali', "Dataset"])
+tab1, tab2, tab6, tab3, tab5, tab4 = st.tabs(["Confronto fra Uomo e Donna per relazione con la vittima", "Omicidi per relazione con la vittima", 'Suicidi', 'Confronto Europa', 'Reati sessuali', "Dataset"])
+
+with tab6:
+    st.write('In questa tab vengono rappresentati i casi di suicidio e i tentatativi di suicidio. La serie storica si interrompe al 2009.')
+    st.write('[Dataset ISTAT](https://www.istat.it/it/files//2011/04/tavole.zip)')
+    fig_suicidi_ass = px.line(suicidi,
+                          x="Anno",
+                          y=['Suicidi totali', 'Suicidi F', 'Suicidi M'],
+                          title='Suicidi per genere - Italia',
+                          labels={'variable': 'Genere', 'Value': 'Suicidi', 'value': 'Suicidi'},
+                        color_discrete_map = {
+        'Suicidi totali': 'green',
+        'Suicidi M': 'blue',
+        'Suicidi F': 'red'
+    },
+    )
+    st.plotly_chart(fig_suicidi_ass)
+
+    fig_tentativi_suicidio = px.line(suicidi,
+                          x="Anno",
+                          y=['Tentativi di suicidio F', 'Tentativi di suicidio M'],
+                          title='Tentativi di suicidio - Italia',
+                          labels={'variable': 'Genere', 'value': 'Tentativi', 'Value': 'Tentativi'},
+                                     color_discrete_map={
+                                         'Suicidi totali': 'green',
+                                         'Tentativi di suicidio M': 'blue',
+                                         'Tentativi di suicidio F': 'red'
+                                     }
+                                     )
+    st.plotly_chart(fig_tentativi_suicidio)
+
+    fig_suicidi_ratio = px.line(suicidi,
+                          x="Anno",
+                          y=['Suicidi / tentativi di suicidio F', 'Suicidi / tentativi di suicidio M'],
+                          title='Rapporto fra suicidi e tentativi di suicidio per genere',
+                          labels={'variable': 'Genere', 'value': 'Rapporto'},
+                                color_discrete_map={
+                                    'Suicidi totali': 'green',
+                                    'Suicidi / tentativi di suicidio M': 'blue',
+                                    'Suicidi / tentativi di suicidio F': 'red'
+                                }
+                                )
+    st.plotly_chart(fig_suicidi_ratio)
 
 with tab5:
 
@@ -283,6 +358,12 @@ with tab4:
     st.header('Reati sessuali e omicidi - Eurostat')
     st.dataframe(violenze)
     st.download_button("Download dataset Reati sessuali e omicidi - Eurostat", dataset_eurostat.to_csv(index=False).encode('utf-8'), 'dataset_eurostat.csv',
+                       'text/csv')
+
+    st.header('Suicidi e tantativi di suicidio')
+    st.dataframe(suicidi)
+    st.download_button("Download dataset Suicidi e tantativi di suicidio - ISTAT",
+                       dataset_eurostat.to_csv(index=False).encode('utf-8'), 'suicidi.csv',
                        'text/csv')
 
 
@@ -391,6 +472,7 @@ with tab3:
                                       title='Omicidi commessi dal partner sesso della vittima = Uomo - Dati per centomila abitanti',
                                       hover_data=['Nazione', 'Sesso della vittima', 'Unità'])
     st.plotly_chart(fig_eurostat_uomo_cento_nazione)
+
 
 with tab1:
     st.write("In questa sezione puoi confrontare i dati realtivi agli omicidi per genere e relazione con la vittima")
