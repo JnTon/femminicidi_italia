@@ -6,16 +6,21 @@ import plotly.express as px
 import requests
 import zipfile
 from io import BytesIO
-import eurostat
 
 
-
+# Disabilita la verifica del certificato SSL (NON consigliato in produzione)
 ssl._create_default_https_context = ssl._create_unverified_context
+# Definisci il percorso del file Excel
 percorso_file = 'https://www.istat.it/it/files//2018/04/omicidi-relazione-autore-DCPC-anni-2002-2021_v.3.xlsx'
 
 
 def pulisci_dataframe(df):
-    return df.iloc[0:6].reset_index(drop=True)
+    df.dropna(inplace=True)
+    df.reset_index(inplace=True)
+    del df['index']
+    df = df.iloc[0:6]
+    df.columns = df.columns.astype(str)
+    return df
 
 # Leggi il file Excel per il totale
 totale = pd.read_excel(percorso_file, skiprows=3)
@@ -34,7 +39,8 @@ uomo = pulisci_dataframe(uomo)
 donna = pulisci_dataframe(donna)
 
 def rinomina_colonne(df, nuova_colonna):
-    return df.rename(columns={"RELAZIONE DELLA VITTIMA CON L'OMICIDA": nuova_colonna})
+    df = df.rename(columns={"RELAZIONE DELLA VITTIMA CON L'OMICIDA": nuova_colonna})
+    return df
 
 # Rinomina le colonne
 donna = rinomina_colonne(donna, 'Relazione vittima-omicida')
@@ -42,7 +48,8 @@ uomo = rinomina_colonne(uomo, 'Relazione vittima-omicida')
 totale = rinomina_colonne(totale, 'Relazione vittima-omicida')
 
 
-
+#Import dataset eurostat
+import eurostat
 
 nazioni_mapping = {
     'AL': 'Albania',
