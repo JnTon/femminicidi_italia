@@ -6,53 +6,43 @@ import plotly.express as px
 import requests
 import zipfile
 from io import BytesIO
-
-
-# Disabilita la verifica del certificato SSL (NON consigliato in produzione)
-ssl._create_default_https_context = ssl._create_unverified_context
-
-# Specifica il percorso del file Excel
-percorso_file = 'https://www.istat.it/it/files//2018/04/omicidi-relazione-autore-DCPC-anni-2002-2021_v.3.xlsx'
-
-# Leggi il file Excel saltando le prime tre righe
-totale = pd.read_excel(percorso_file, skiprows=3)
-totale.dropna(inplace=True)
-totale.reset_index(inplace=True)
-del totale['index']
-totale = totale.iloc[0:6]
-totale.columns = totale.columns.astype(str)
-
-# Specifica il percorso del file Excel
-percorso_file = 'https://www.istat.it/it/files//2018/04/omicidi-relazione-autore-DCPC-anni-2002-2021_v.3.xlsx'
-
-# Leggi il file Excel saltando le prime tre righe
-uomo = pd.read_excel(percorso_file, sheet_name=1, skiprows=3)
-uomo.dropna(inplace=True)
-uomo.reset_index(inplace=True)
-del uomo['index']
-uomo=uomo.iloc[0:6]
-uomo.columns = totale.columns.astype(str)
-
-
-# Specifica il percorso del file Excel
-percorso_file = 'https://www.istat.it/it/files//2018/04/omicidi-relazione-autore-DCPC-anni-2002-2021_v.3.xlsx'
-
-# Leggi il file Excel saltando le prime tre righe
-donna = pd.read_excel(percorso_file, sheet_name=2, skiprows=3)
-donna.dropna(inplace=True)
-donna.reset_index(inplace=True)
-del donna['index']
-donna=donna.iloc[0:6]
-donna.columns = totale.columns.astype(str)
-
-
-donna= donna.rename(columns={"RELAZIONE DELLA VITTIMA CON L'OMICIDA": 'Relazione vittima-omicida'})
-uomo= uomo.rename(columns={"RELAZIONE DELLA VITTIMA CON L'OMICIDA": 'Relazione vittima-omicida'})
-totale= totale.rename(columns={"RELAZIONE DELLA VITTIMA CON L'OMICIDA": 'Relazione vittima-omicida'})
-
-
-#Import dataset eurostat
 import eurostat
+
+
+
+ssl._create_default_https_context = ssl._create_unverified_context
+percorso_file = 'https://www.istat.it/it/files//2018/04/omicidi-relazione-autore-DCPC-anni-2002-2021_v.3.xlsx'
+
+
+def pulisci_dataframe(df):
+    return df.iloc[0:6].reset_index(drop=True)
+
+# Leggi il file Excel per il totale
+totale = pd.read_excel(percorso_file, skiprows=3)
+
+# Leggi il file Excel per l'uomo
+uomo = pd.read_excel(percorso_file, sheet_name=1, skiprows=3)
+
+
+# Leggi il file Excel per la donna
+donna = pd.read_excel(percorso_file, sheet_name=2, skiprows=3)
+
+
+# Pulizia dei dati per i dataframe totale, uomo, donna
+totale = pulisci_dataframe(totale)
+uomo = pulisci_dataframe(uomo)
+donna = pulisci_dataframe(donna)
+
+def rinomina_colonne(df, nuova_colonna):
+    return df.rename(columns={"RELAZIONE DELLA VITTIMA CON L'OMICIDA": nuova_colonna})
+
+# Rinomina le colonne
+donna = rinomina_colonne(donna, 'Relazione vittima-omicida')
+uomo = rinomina_colonne(uomo, 'Relazione vittima-omicida')
+totale = rinomina_colonne(totale, 'Relazione vittima-omicida')
+
+
+
 
 nazioni_mapping = {
     'AL': 'Albania',
